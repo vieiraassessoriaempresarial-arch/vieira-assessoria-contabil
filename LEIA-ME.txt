@@ -1,0 +1,19 @@
+VIEIRA ASSESSORIA CONTÁBIL — VERSÃO 12
+
+Abra index.html no navegador. Para compartilhamento público, hospede a pasta completa.
+
+AGENDAS
+- Receita Federal: o botão monta o endereço oficial com o mês e o ano correntes.
+- SP: o botão usa o último Comunicado SRE CONFIRMADO em assets/agenda-sp.json.
+- Atualização automática de SP: se o site estiver em um repositório GitHub com Actions habilitado, o workflow .github/workflows/agenda-sp.yml verifica diariamente a publicação oficial, atualiza o arquivo JSON e faz commit. Para refletir isso no site público, a hospedagem precisa publicar automaticamente os commits desse repositório.
+- Ao abrir o site localmente por file://, a leitura do JSON pode ser bloqueada; nesse caso, o link oficial confirmado de outubro de 2026 permanece embutido no HTML.
+- O script não adivinha números de comunicados e não substitui a verificação contábil dos prazos.
+
+VÍDEO
+Clique na imagem principal 'Sua empresa em boas mãos' para abrir o vídeo. Feche com Esc, X ou clicando fora.
+
+ÁREA RURAL
+Destaque a cana-de-açúcar, soja e pecuária, com abertura a outros segmentos.
+
+CLIENTES
+Naka's Sushi recebeu o novo logotipo. Os demais clientes e funcionalidades foram preservados.
