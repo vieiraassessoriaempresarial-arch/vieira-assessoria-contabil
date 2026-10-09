@@ -134,7 +134,7 @@ document.getElementById('refresh').addEventListener('click',indicators);indicato
  const track=document.getElementById('clientes-trilho');if(!track)return;
  const originals=[...track.querySelectorAll('.client-card')], count=originals.length;
  // Three sets allow wrapping in both directions without hitting the scroll boundary.
- for(let copy=0;copy<2;copy++) originals.forEach(card=>track.appendChild(card.cloneNode(true)));
+ for(let copy=0;copy<2;copy++) originals.forEach(card=>{const clone=card.cloneNode(true);clone.classList.remove('reveal');clone.classList.add('visible');clone.style.opacity='1';clone.style.transform='none';track.appendChild(clone)});
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
  let modalOpen=false,dragging=false,manualUntil=0,last=0,anim=null;
  const stride=()=>{const c=originals[0];return c.getBoundingClientRect().width+parseFloat(getComputedStyle(track).columnGap||getComputedStyle(track).gap||'15')};
