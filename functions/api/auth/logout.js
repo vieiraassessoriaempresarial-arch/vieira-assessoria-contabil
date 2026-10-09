@@ -1,0 +1,1 @@
+export async function onRequestPost({request}){const origin=new URL(request.url).origin;if(request.headers.get("Origin")!==origin)return new Response("Origem inválida.",{status:403});return new Response(null,{status:204,headers:{"Set-Cookie":"vieira_session=; Path=/api; HttpOnly; Secure; SameSite=Strict; Max-Age=0","Cache-Control":"no-store"}})}
