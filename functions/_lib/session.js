@@ -1,0 +1,7 @@
+// AES-GCM encrypts the GitHub token; the browser never receives the token in JavaScript.
+const enc=new TextEncoder(),dec=new TextDecoder();
+function b64(bytes){return btoa(String.fromCharCode(...bytes)).replace(/\\+/g,"-").replace(/\\//g,"_").replace(/=+$/,"")}
+function unb64(s){const t=s.replace(/-/g,"+").replace(/_/g,"/");return Uint8Array.from(atob(t+"=".repeat((4-t.length%4)%4)),c=>c.charCodeAt(0))}
+async function key(secret){const digest=await crypto.subtle.digest("SHA-256",enc.encode(secret));return crypto.subtle.importKey("raw",digest,"AES-GCM",false,["encrypt","decrypt"])}
+export async function sealSession(payload,secret){const iv=crypto.getRandomValues(new Uint8Array(12));const ct=new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv},await key(secret),enc.encode(JSON.stringify(payload))));return b64(iv)+"."+b64(ct)}
+export async function readSession(request,env){if(!env.SESSION_SECRET||!env.ALLOWED_GITHUB_LOGIN)return null;const cookie=(request.headers.get("Cookie")||"").split(";").map(s=>s.trim()).find(s=>s.startsWith("vieira_session="));if(!cookie)return null;try{const [a,b]=cookie.slice("vieira_session=".length).split(".");const plain=await crypto.subtle.decrypt({name:"AES-GCM",iv:unb64(a)},await key(env.SESSION_SECRET),unb64(b));const s=JSON.parse(dec.decode(plain));return s.exp>Date.now()&&s.login?.toLowerCase()===env.ALLOWED_GITHUB_LOGIN.toLowerCase()?s:null}catch{return null}}
