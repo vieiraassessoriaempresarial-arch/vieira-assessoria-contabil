@@ -133,18 +133,21 @@ document.getElementById('refresh').addEventListener('click',indicators);indicato
 <script>(()=>{
  const track=document.getElementById('clientes-trilho');if(!track)return;
  const originals=[...track.querySelectorAll('.client-card')], count=originals.length;
- originals.forEach(card=>{const clone=card.cloneNode(true);clone.setAttribute('aria-hidden','true');clone.tabIndex=-1;track.appendChild(clone)});
+ // Three sets allow wrapping in both directions without hitting the scroll boundary.
+ for(let copy=0;copy<2;copy++) originals.forEach(card=>{const clone=card.cloneNode(true);clone.classList.remove('reveal');clone.classList.add('visible');clone.style.opacity='1';clone.style.transform='none';track.appendChild(clone)});
  const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
- let hovering=false,focused=false,modalOpen=false,dragging=false,manualUntil=0,last=0,anim=null;
- const stride=()=>{const c=originals[0];return c.getBoundingClientRect().width+parseFloat(getComputedStyle(track).gap||'15')};
+ let modalOpen=false,dragging=false,manualUntil=0,last=0,anim=null;
+ const stride=()=>{const c=originals[0];return c.getBoundingClientRect().width+parseFloat(getComputedStyle(track).columnGap||getComputedStyle(track).gap||'15')};
  const loopWidth=()=>count*stride();
- const normalize=()=>{const w=loopWidth();if(!w)return;while(track.scrollLeft>=w)track.scrollLeft-=w;while(track.scrollLeft<0)track.scrollLeft+=w};
- // Auto movement: approximately 18 pixels per second; pause on hover, focus, modal and manual navigation.
- function frame(t){if(!last)last=t;const dt=Math.min(t-last,60);last=t;if(!modalOpen&&!dragging&&!reduced.matches&&t>manualUntil&&!anim&&document.visibilityState!=="hidden"){track.scrollLeft+=dt*.018;normalize()}requestAnimationFrame(frame)}
- function step(dir){if(anim){cancelAnimationFrame(anim);anim=null}normalize();const w=loopWidth(),stepSize=stride();let start=track.scrollLeft;
- // Moving backward near the beginning requires repositioning in the duplicated half.
- if(dir<0&&start<stepSize){track.scrollLeft+=w;start=track.scrollLeft}
- const target=start+dir*stepSize;const duration=420,t0=performance.now();manualUntil=t0+duration+1600;
+ const normalize=()=>{const w=loopWidth();if(!w)return; if(track.scrollLeft<w*.5)track.scrollLeft+=w;else if(track.scrollLeft>=w*1.5)track.scrollLeft-=w;};
+ // Start in the middle copy, allowing the previous button to wrap correctly.
+ const initialize=()=>{const w=loopWidth();if(w)track.scrollLeft=w};
+ if(document.readyState==='complete')initialize();else window.addEventListener('load',initialize,{once:true});
+ requestAnimationFrame(initialize);
+ // Visible continuous autoplay, respecting reduced motion and active interaction.
+ function frame(t){if(!last)last=t;const dt=Math.min(t-last,60);last=t;if(!modalOpen&&!dragging&&!reduced.matches&&t>manualUntil&&!anim&&document.visibilityState!=='hidden'){track.scrollLeft+=dt*.065;normalize()}requestAnimationFrame(frame)}
+ function step(dir){if(anim){cancelAnimationFrame(anim);anim=null}normalize();const stepSize=stride();let start=track.scrollLeft;
+ const target=start+dir*stepSize;const duration=420,t0=performance.now();manualUntil=t0+duration+1800;
  const tick=(now)=>{const x=Math.min(1,(now-t0)/duration),ease=1-Math.pow(1-x,3);track.scrollLeft=start+(target-start)*ease;if(x<1)anim=requestAnimationFrame(tick);else{anim=null;normalize()}};anim=requestAnimationFrame(tick)
  }
  document.getElementById('client-prev').addEventListener('click',()=>step(-1));document.getElementById('client-next').addEventListener('click',()=>step(1));
