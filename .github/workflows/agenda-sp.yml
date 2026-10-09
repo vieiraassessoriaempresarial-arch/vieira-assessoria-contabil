@@ -22,8 +22,13 @@ jobs:
         with:
           python-version: '3.11'
 
+
+      - name: Instalar bibliotecas
+        run: python -m pip install requests
+
       - name: Executar atualizacao
         run: python atualizar_agenda_sp.py
+
 
       - name: Salvar alteracoes na agenda
         run: |
