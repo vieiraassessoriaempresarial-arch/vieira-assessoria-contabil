@@ -12,7 +12,7 @@ export async function onRequestGet({request,env}) {
   if(!profileResponse.ok)return new Response("Não foi possível verificar o usuário.",{status:502});
   const profile=await profileResponse.json();
   if(profile.login?.toLowerCase()!==env.ALLOWED_GITHUB_LOGIN?.toLowerCase())return new Response("Esta conta GitHub não tem permissão.",{status:403,headers:{"Set-Cookie":clear}});
-  const session=await sealSession({login:profile.login,token:tokenData.access_token,exp:Date.now()+3600*1000},env.SESSION_SECRET);
+  const session=await sealSession({login:profile.login,exp:Date.now()+3600*1000},env.SESSION_SECRET);
   const headers=new Headers({"Location":"/admin-prototipo.html","Cache-Control":"no-store"});
   headers.append("Set-Cookie",clear);
   headers.append("Set-Cookie",`vieira_session=${session}; Path=/api; HttpOnly; Secure; SameSite=Strict; Max-Age=3600`);
