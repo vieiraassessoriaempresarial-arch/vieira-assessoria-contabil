@@ -20,7 +20,7 @@ async function load(token){
   if(r.status===404)return {sha:null,clients:[]};
   if(!r.ok)throw Error("Falha ao consultar arquivo no GitHub: "+r.status);
   const file=await r.json();
-  const raw=atob(file.content.replace(/\\s/g,""));
+  const raw=atob(file.content.replace(/\s/g,""));
   const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
   const clients=JSON.parse(new TextDecoder().decode(bytes));
   if(!Array.isArray(clients))throw Error("Formato de arquivo inválido");
