@@ -7,7 +7,7 @@ export async function onRequestGet({request,env}) {
   const tokenResponse=await fetch("https://github.com/login/oauth/access_token",{method:"POST",headers:{"Accept":"application/json","Content-Type":"application/json"},body:JSON.stringify({client_id:env.GITHUB_CLIENT_ID,client_secret:env.GITHUB_CLIENT_SECRET,code,redirect_uri:new URL("/api/auth/callback",request.url).href})});
   if(!tokenResponse.ok)return new Response("Falha na autenticação.",{status:502});
   const tokenData=await tokenResponse.json();
-  if(!tokenData.access_token)return new Response("GitHub não autorizou o acesso.",{status:403});
+  if(!tokenData.access_token){const known=["bad_verification_code","incorrect_client_credentials","redirect_uri_mismatch","application_suspended","access_denied"];const error=known.includes(tokenData.error)?tokenData.error:"unknown_oauth_error";return new Response(`Falha na autorização GitHub (${error}). Verifique as credenciais OAuth do aplicativo e tente novamente.`,{status:403,headers:{"Cache-Control":"no-store"}});}
   const profileResponse=await fetch("https://api.github.com/user",{headers:{"Authorization":`Bearer ${tokenData.access_token}`,"Accept":"application/vnd.github+json","User-Agent":"Vieira-Admin"}});
   if(!profileResponse.ok)return new Response("Não foi possível verificar o usuário.",{status:502});
   const profile=await profileResponse.json();
