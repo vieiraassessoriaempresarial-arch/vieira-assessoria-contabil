@@ -9,11 +9,11 @@ function der(tag,bytes){
   return Uint8Array.from([tag,...length,...bytes]);
 }
 function pemBytes(pem){
-  const rsa=/-----BEGIN RSA PRIVATE KEY-----([\\s\\S]*?)-----END RSA PRIVATE KEY-----/.exec(pem);
-  const pkcs8=/-----BEGIN PRIVATE KEY-----([\\s\\S]*?)-----END PRIVATE KEY-----/.exec(pem);
+  const rsa=/-----BEGIN RSA PRIVATE KEY-----([\s\S]*?)-----END RSA PRIVATE KEY-----/.exec(pem);
+  const pkcs8=/-----BEGIN PRIVATE KEY-----([\s\S]*?)-----END PRIVATE KEY-----/.exec(pem);
   const match=rsa||pkcs8;
   if(!match)throw Error("Formato PEM não suportado");
-  const raw=Uint8Array.from(atob(match[1].replace(/\\s/g,"")),x=>x.charCodeAt(0));
+  const raw=Uint8Array.from(atob(match[1].replace(/\s/g,"")),x=>x.charCodeAt(0));
   if(!rsa)return raw;
   // PKCS#1 RSA PrivateKey -> PKCS#8 PrivateKeyInfo for WebCrypto.
   const version=Uint8Array.of(0x02,0x01,0x00);
