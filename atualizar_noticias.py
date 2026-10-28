@@ -6,14 +6,14 @@ import re
 import unicodedata
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from urllib.parse import urlparse
 
 SOURCES = [
-    ('Receita Federal', 'https://www.gov.br/receitafederal/RSS'),
-    ('Ministério do Empreendedorismo', 'https://www.gov.br/memp/RSS'),
-    ('PGFN', 'https://www.gov.br/pgfn/RSS'),
+    ('Receita Federal', 'https://www.gov.br/receitafederal/search_rss?SearchableText=Simples%20Nacional&sort_on=effective&sort_order=reverse&portal_type=News%20Item'),
+    ('Receita Federal', 'https://www.gov.br/receitafederal/search_rss?SearchableText=MEI&sort_on=effective&sort_order=reverse&portal_type=News%20Item'),
+    ('PGFN', 'https://www.gov.br/pgfn/search_rss?SearchableText=MEI&sort_on=effective&sort_order=reverse&portal_type=News%20Item'),
 ]
 TARGET = Path(__file__).parent / 'assets/noticias.json'
 
@@ -42,7 +42,11 @@ def read_source(source):
             continue
         raw = value('pubDate') or value('date') or value('published') or value('updated')
         try:
-            date = email.utils.parsedate_to_datetime(raw) if raw and not re.match(r'^\d{4}-', raw) else datetime.fromisoformat(raw.replace('Z', '+00:00'))
+            if raw and re.match(r'^\d{4}/\d{2}/\d{2}', raw):
+                stamp, _, zone = raw.partition(' GMT')
+                date = datetime.strptime(stamp, '%Y/%m/%d %H:%M:%S').replace(tzinfo=timezone(timedelta(hours=int(zone or '0'))))
+            else:
+                date = email.utils.parsedate_to_datetime(raw) if raw and not re.match(r'^\d{4}-', raw) else datetime.fromisoformat(raw.replace('Z', '+00:00'))
             if date.tzinfo is None:
                 date = date.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError, AttributeError):
