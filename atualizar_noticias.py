@@ -12,8 +12,8 @@ from urllib.parse import urlparse
 
 SOURCES = [
     ('Receita Federal', 'https://www.gov.br/receitafederal/RSS'),
-    ('Ministério do Empreendedorismo', 'https://www.gov.br/memp/pt-br/assuntos/noticias/RSS'),
-    ('PGFN', 'https://www.gov.br/pgfn/pt-br/assuntos/noticias/RSS'),
+    ('Ministério do Empreendedorismo', 'https://www.gov.br/memp/RSS'),
+    ('PGFN', 'https://www.gov.br/pgfn/RSS'),
 ]
 TARGET = Path(__file__).parent / 'assets/noticias.json'
 
@@ -29,13 +29,18 @@ def read_source(source):
     with urllib.request.urlopen(request, timeout=35) as response:
         root = ET.fromstring(response.read(3_000_000))
     items = []
-    for item in root.findall('.//item'):
-        title = ' '.join((item.findtext('title') or '').split())
-        link = (item.findtext('link') or '').strip()
+    local = lambda tag: tag.rsplit('}', 1)[-1]
+    for item in (node for node in root.iter() if local(node.tag) in ('item', 'entry')):
+        fields = {local(child.tag): child for child in item}
+        value = lambda key: fields[key].text if key in fields else None
+        title = ' '.join((value('title') or '').split())
+        link = (value('link') or '').strip()
+        if not link and 'link' in fields:
+            link = fields['link'].get('href', '')
         parsed = urlparse(link)
         if not relevant(title) or parsed.scheme != 'https' or parsed.hostname != 'www.gov.br':
             continue
-        raw = item.findtext('pubDate') or item.findtext('{http://purl.org/dc/elements/1.1/}date')
+        raw = value('pubDate') or value('date') or value('published') or value('updated')
         try:
             date = email.utils.parsedate_to_datetime(raw) if raw and not re.match(r'^\d{4}-', raw) else datetime.fromisoformat(raw.replace('Z', '+00:00'))
             if date.tzinfo is None:
