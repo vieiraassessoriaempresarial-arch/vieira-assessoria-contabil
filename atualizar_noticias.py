@@ -11,9 +11,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 SOURCES = [
-    ('Receita Federal', 'https://www.gov.br/receitafederal/search_rss?SearchableText=Simples%20Nacional&sort_on=effective&sort_order=reverse&portal_type=News%20Item'),
-    ('Receita Federal', 'https://www.gov.br/receitafederal/search_rss?SearchableText=MEI&sort_on=effective&sort_order=reverse&portal_type=News%20Item'),
-    ('PGFN', 'https://www.gov.br/pgfn/search_rss?SearchableText=MEI&sort_on=effective&sort_order=reverse&portal_type=News%20Item'),
+    ('Receita Federal', 'https://www.gov.br/receitafederal/search_rss?Title=Simples%20Nacional&sort_on=effective&sort_order=reverse'),
+    ('Receita Federal', 'https://www.gov.br/receitafederal/search_rss?Title=MEI&sort_on=effective&sort_order=reverse'),
+    ('PGFN', 'https://www.gov.br/pgfn/search_rss?Title=MEI&sort_on=effective&sort_order=reverse'),
 ]
 TARGET = Path(__file__).parent / 'assets/noticias.json'
 
