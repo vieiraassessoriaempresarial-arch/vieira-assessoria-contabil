@@ -164,13 +164,13 @@ document.getElementById('refresh').addEventListener('click',indicators);indicato
  if(document.readyState==='complete')initialize();else window.addEventListener('load',initialize,{once:true});
  requestAnimationFrame(initialize);
  // Visible continuous autoplay, respecting reduced motion and active interaction.
- let inView=false,autoplayFrame=null;
+ let inView=false,autoplayFrame=null,autoRemainder=0;
  const canAnimate=()=>inView&&!document.hidden&&!reduced.matches;
  function syncAutoplay(){
   if(canAnimate()){if(autoplayFrame===null){last=0;autoplayFrame=requestAnimationFrame(frame)}}
   else if(autoplayFrame!==null){cancelAnimationFrame(autoplayFrame);autoplayFrame=null;last=0}
  }
- function frame(t){autoplayFrame=null;if(!canAnimate()){last=0;return}if(!last)last=t;const dt=Math.min(t-last,60);last=t;if(!modalOpen&&!dragging&&t>manualUntil&&!anim){track.scrollLeft+=dt*.065;normalize()}autoplayFrame=requestAnimationFrame(frame)}
+ function frame(t){autoplayFrame=null;if(!canAnimate()){last=0;return}if(!last)last=t;const dt=Math.min(t-last,60);last=t;if(!modalOpen&&!dragging&&t>manualUntil&&!anim){const distance=dt*.065+autoRemainder;const pixels=Math.floor(distance);autoRemainder=distance-pixels;if(pixels){track.scrollLeft+=pixels;normalize()}}autoplayFrame=requestAnimationFrame(frame)}
  document.addEventListener('visibilitychange',syncAutoplay);
  reduced.addEventListener('change',syncAutoplay);
  function step(dir){if(anim){cancelAnimationFrame(anim);anim=null}normalize();const stepSize=stride();let start=track.scrollLeft;
@@ -180,7 +180,7 @@ document.getElementById('refresh').addEventListener('click',indicators);indicato
  document.getElementById('client-prev').addEventListener('click',()=>step(-1));document.getElementById('client-next').addEventListener('click',()=>step(1));
  // Hover does not pause autoplay on desktop; only modal/manual interaction does.
 
- track.addEventListener('touchstart',()=>dragging=true,{passive:true});track.addEventListener('touchend',()=>{dragging=false;manualUntil=performance.now()+1800},{passive:true});
+ const finishTouch=()=>{dragging=false;manualUntil=performance.now()+1800;syncAutoplay()};track.addEventListener('touchstart',()=>dragging=true,{passive:true});track.addEventListener('touchend',finishTouch,{passive:true});track.addEventListener('touchcancel',finishTouch,{passive:true});window.addEventListener('pageshow',()=>{dragging=false;syncAutoplay()});
  const modal=document.getElementById('client-modal'),closeBtn=document.getElementById('client-modal-close');let previousFocus=null;
  function close(){modal.hidden=true;modalOpen=false;document.body.style.overflow='';if(previousFocus)previousFocus.focus({preventScroll:true});manualUntil=performance.now()+800}
  function open(card){previousFocus=document.activeElement;modalOpen=true;modal.hidden=false;document.body.style.overflow='hidden';
