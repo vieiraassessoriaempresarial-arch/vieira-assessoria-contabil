@@ -8,7 +8,7 @@ const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('
 async function sameSecret(a,b){return await digest(a)===await digest(b)}
 async function readLimited(response,limit){if(Number(response.headers.get('Content-Length')||0)>limit)throw Error('SIZE');const reader=response.body?.getReader();if(!reader)return '';const parts=[];let n=0;while(true){const {done,value}=await reader.read();if(done)break;n+=value.length;if(n>limit){await reader.cancel();throw Error('SIZE')}parts.push(value)}const bytes=new Uint8Array(n);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length}return new TextDecoder().decode(bytes)}
 async function provider(env,path,method='GET'){
- let response;try{response=await fetch(API+path,{method,headers:{'Api-Key':env.MEUDANFE_API_KEY,'Accept':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000)})}catch{throw Error('PROVIDER_CONNECTION')}
+ let response;try{response=await fetch(API+path,{method,headers:{'Api-Key':env.MEUDANFE_API_KEY,'Accept':'application/json'},redirect:'manual',signal:AbortSignal.timeout(20000)})}catch{throw Error('PROVIDER_CONNECTION')}
  if(!response.ok){const e=Error('PROVIDER');e.status=response.status;throw e}
  let data;try{data=JSON.parse(await readLimited(response,7*1024*1024))}catch{throw Error('INVALID_RESPONSE')}
  return data;
