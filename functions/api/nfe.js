@@ -8,12 +8,12 @@ const digest=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('
 async function sameSecret(a,b){return await digest(a)===await digest(b)}
 async function readLimited(response,limit){if(Number(response.headers.get('Content-Length')||0)>limit)throw Error('SIZE');const reader=response.body?.getReader();if(!reader)return '';const parts=[];let n=0;while(true){const {done,value}=await reader.read();if(done)break;n+=value.length;if(n>limit){await reader.cancel();throw Error('SIZE')}parts.push(value)}const bytes=new Uint8Array(n);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length}return new TextDecoder().decode(bytes)}
 async function provider(env,path,method='GET'){
- const response=await fetch(API+path,{method,headers:{'Api-Key':env.MEUDANFE_API_KEY,'Accept':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000)});
+ let response;try{response=await fetch(API+path,{method,headers:{'Api-Key':env.MEUDANFE_API_KEY,'Accept':'application/json'},redirect:'error',signal:AbortSignal.timeout(20000)})}catch{throw Error('PROVIDER_CONNECTION')}
  if(!response.ok){const e=Error('PROVIDER');e.status=response.status;throw e}
  let data;try{data=JSON.parse(await readLimited(response,7*1024*1024))}catch{throw Error('INVALID_RESPONSE')}
  return data;
 }
-function providerError(error){if(error.status===402)return reply({error:'O serviço está sem saldo para novas consultas. Entre em contato com o escritório.'},503);if([401,403].includes(error.status))return reply({error:'A credencial de consulta precisa ser revisada pelo escritório.'},503);if(error.status===429)return reply({error:'O serviço atingiu seu limite temporário. Aguarde antes de tentar novamente.'},429);return reply({error:'Não foi possível concluir a consulta agora. Aguarde e tente mais tarde.'},502)}
+function providerError(error){const code=error.status?'MD-HTTP-'+error.status:error.message==='INVALID_RESPONSE'?'MD-RESPONSE':error.message==='PROVIDER_CONNECTION'?'MD-CONNECTION':error.message==='DATABASE_SETUP'?'DB-SETUP':String(error.message||'').startsWith('D1')?'DB-QUERY':'LOOKUP-INTERNAL';console.error('DANFE_LOOKUP_FAILURE',code);if(error.status===402)return reply({error:'O serviço está sem saldo para novas consultas. Entre em contato com o escritório.'},503);if([401,403].includes(error.status))return reply({error:'A credencial de consulta precisa ser revisada pelo escritório.'},503);if(error.status===429)return reply({error:'O serviço atingiu seu limite temporário. Aguarde antes de tentar novamente.'},429);return reply({error:'Não foi possível concluir a consulta. Informe ao escritório o código: '+code+'.'},502)}
 async function init(db){await db.batch([db.prepare('CREATE TABLE IF NOT EXISTS danfe_daily (day TEXT PRIMARY KEY, used INTEGER NOT NULL DEFAULT 0)'),db.prepare('CREATE TABLE IF NOT EXISTS danfe_jobs (id TEXT PRIMARY KEY, token TEXT NOT NULL, state TEXT NOT NULL, next_poll INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL)')])}
 async function documentXML(env,key){const result=await provider(env,'/fd/get/xml/'+key);if(result.format!=='XML'||result.type!=='NFE'||typeof result.data!=='string'||!result.data.includes('<')||result.data.length>5*1024*1024)throw Error('INVALID_RESPONSE');return result.data}
 async function finish(env,id,key,token){const xml=await documentXML(env,key);await env.DANFE_DB.prepare("UPDATE danfe_jobs SET state='OK', expires=? WHERE id=?").bind(Date.now()+1800000,id).run();return reply({status:'OK',xml,token})}
@@ -32,7 +32,7 @@ export async function onRequest(context){
  if(!['start','poll'].includes(body.action))return reply({error:'Operação inválida.'},400);
  const now=Date.now(),id=await digest(key);const db=env.DANFE_DB;
  try{
-  await init(db);
+  try{await init(db)}catch{throw Error('DATABASE_SETUP')}
   let job=await db.prepare('SELECT * FROM danfe_jobs WHERE id=?').bind(id).first();
   if(job&&job.expires<now){await db.prepare('DELETE FROM danfe_jobs WHERE id=? AND expires<?').bind(id,now).run();job=null}
   if(body.action==='poll'){
