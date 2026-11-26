@@ -20,7 +20,7 @@ function parseXML(text,Parser=root.DOMParser){
  const info=path(proc,'NFe/infNFe'),prot=path(proc,'protNFe/infProt');
  if(!info||!prot||info.getAttribute('versao')!=='4.00')throw Error('É necessário um XML de NF-e versão 4.00 com protocolo de autorização.');
  if(val(info,'ide/mod')!=='55')throw Error('Esta ferramenta gera DANFE somente para NF-e modelo 55.');
- if(val(info,'ide/tpImp')!=='1')throw Error('Esta versão atende ao DANFE retrato. O XML indica outro tipo de impressão; utilize o sistema emissor para esse documento.');
+ if(!['1','2'].includes(val(info,'ide/tpImp')))throw Error('Esta versão atende ao DANFE normal em retrato ou paisagem. Utilize o sistema emissor para outros tipos de impressão.');
  if(val(info,'ide/tpEmis')!=='1')throw Error('NF-e em contingência exige leiaute específico. Utilize o sistema emissor para esse documento.');
  if(!['100','150'].includes(val(prot,'cStat')))throw Error('O protocolo deste XML não indica autorização de uso (cStat 100 ou 150).');
  const key=(info.getAttribute('Id')||'').replace(/^NFe/,'');
@@ -47,7 +47,8 @@ async function createPDF(model,dependencies={}){
  const {PDFDocument,StandardFonts,rgb,degrees}=lib,doc=await PDFDocument.create();
  doc.setTitle('DANFE - NF-e '+model.number);doc.setAuthor('Gerado localmente - Vieira Assessoria Contábil');doc.setSubject('Representação do XML fornecido pelo usuário. Situação atual não consultada.');
  const font=await doc.embedFont(StandardFonts.Helvetica),bold=await doc.embedFont(StandardFonts.HelveticaBold);
- const W=595.28,H=841.89,M=12,C=W-M*2,BLACK=rgb(0,0,0),GREY=rgb(.94,.94,.94);let page,y=0;
+ const landscape=val(model.info,'ide/tpImp')==='2';
+ const W=landscape?841.89:595.28,H=landscape?595.28:841.89,M=landscape?62:12,C=W-M-12,BLACK=rgb(0,0,0),GREY=rgb(.94,.94,.94);let page,y=0;
  const safe=t=>Array.from(String(t??'').replace(/[\r\t]/g,' ')).map(c=>{if(c==='\n')return c;try{font.encodeText(c);return c}catch{return '?'}}).join('');
  const measure=(t,size=7,f=font)=>f.widthOfTextAtSize(safe(t),size);
  function wrap(t,w,size=7,f=font){const result=[];for(const paragraph of safe(t).split('\n')){let line='';for(const word of paragraph.split(/\s+/).filter(Boolean)){if(measure((line?line+' ':'')+word,size,f)<=w){line+=(line?' ':'')+word;continue}if(line){result.push(line);line=''}let part='';for(const char of word){if(measure(part+char,size,f)>w&&part){result.push(part);part=''}part+=char}line=part}result.push(line)}return result.length?result:['']}
@@ -60,8 +61,19 @@ async function createPDF(model,dependencies={}){
  const encoded={};barcode(encoded,model.key,{format:'CODE128C',displayValue:false,margin:0});
  const bits=encoded.encodings.map(e=>e.data).join('');
  function barcodeDraw(x,top,w){const quiet=10,module=w/(bits.length+quiet*2);let i=0;while(i<bits.length){if(bits[i]==='1'){let end=i+1;while(bits[end]==='1')end++;page.drawRectangle({x:x+(quiet+i)*module,y:H-top-23,width:(end-i)*module,height:23,color:BLACK});i=end}else i++}}
- function header(first){page=doc.addPage([W,H]);y=M;
-  if(first){box(M,y,C-68,25);lines('RECEBEMOS DE '+val(emit,'xNome')+' OS PRODUTOS / SERVIÇOS CONSTANTES DA NF-e INDICADA AO LADO.',M+3,y+2,C-74,6);box(W-M-68,y,68,39);text('NF-e',W-M-63,y+2,9,bold);text('Nº '+model.number,W-M-63,y+15,8,bold);text('SÉRIE '+model.series,W-M-63,y+27,7,bold);box(M,y+25,90,14);text('DATA DE RECEBIMENTO',M+3,y+27,5);box(M+90,y+25,C-158,14);text('IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR',M+93,y+27,5);y+=44}
+ function receipt(){
+  // Landscape DANFE keeps the detachable receipt on the left edge.
+  const x=12,top=12,h=H-24,w=39;
+  box(x,top,w,h);box(x,top,w,94);box(x,top+94,w,h-94-110);box(x,top+h-110,w,110);
+  const rotated=(value,offset,size=6,f=font)=>page.drawText(safe(value),{x:x+offset,y:H-top-h+4,size,font:f,color:BLACK,rotate:degrees(90)});
+  rotated('DATA DE RECEBIMENTO',7,5);
+  wrap('IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR',102,5).forEach((v,i)=>rotated(v,20+i*7,5));
+  page.drawText('NF-e  Nº '+model.number+'  SÉRIE '+model.series,{x:x+29,y:H-top-90,size:8,font:bold,color:BLACK,rotate:degrees(90)});
+  const message='RECEBEMOS DE '+val(emit,'xNome')+' OS PRODUTOS / SERVIÇOS CONSTANTES DA NF-e INDICADA.';
+  wrap(message,h-94-110-8,6).forEach((v,i)=>page.drawText(safe(v),{x:x+8+i*8,y:12+110+4,size:6,font,color:BLACK,rotate:degrees(90)}));
+ }
+ function header(first){page=doc.addPage([W,H]);y=12;if(first&&landscape)receipt();
+  if(first&&!landscape){box(M,y,C-68,25);lines('RECEBEMOS DE '+val(emit,'xNome')+' OS PRODUTOS / SERVIÇOS CONSTANTES DA NF-e INDICADA AO LADO.',M+3,y+2,C-74,6);box(W-M-68,y,68,39);text('NF-e',W-M-63,y+2,9,bold);text('Nº '+model.number,W-M-63,y+15,8,bold);text('SÉRIE '+model.series,W-M-63,y+27,7,bold);box(M,y+25,90,14);text('DATA DE RECEBIMENTO',M+3,y+27,5);box(M+90,y+25,C-158,14);text('IDENTIFICAÇÃO E ASSINATURA DO RECEBEDOR',M+93,y+27,5);y+=44}
   const top=y,left=205,mid=90,right=C-left-mid;
   box(M,top,left,86);box(M+left,top,mid,86);box(M+left+mid,top,right,86);
   lines(val(emit,'xNome'),M+5,top+5,left-10,10,bold);
@@ -113,7 +125,7 @@ async function createPDF(model,dependencies={}){
  paragraph('DADOS ADICIONAIS / INFORMAÇÕES COMPLEMENTARES',[val(n,'infAdic/infCpl'),...extra].filter(Boolean).join('\n'));
  paragraph('INFORMAÇÕES DE INTERESSE DO FISCO',val(n,'infAdic/infAdFisco'));
  const pag=child(n,'pag');if(pag)paragraph('PAGAMENTOS INFORMADOS NO XML',kids(pag,'detPag').map(x=>'Meio '+val(x,'tPag')+(val(x,'xPag')?' ('+val(x,'xPag')+')':'')+': R$ '+decimal(val(x,'vPag'))).join(' | ')+(val(pag,'vTroco')?' | Troco: R$ '+decimal(val(pag,'vTroco')):''));
- for(const pg of doc.getPages()){page=pg;const i=doc.getPages().indexOf(pg);text('DANFE gerado a partir do XML fornecido. Situação atual não consultada na SEFAZ.',M,H-23,5.6);text('Folha '+(i+1)+' / '+doc.getPageCount(),W-M-64,H-23,6,bold);if(model.homolog){page.drawText('SEM VALOR FISCAL - HOMOLOGAÇÃO',{x:65,y:380,size:23,font:bold,color:rgb(.65,.1,.1),opacity:.26,rotate:degrees(24)})}}
+ for(const pg of doc.getPages()){page=pg;const i=doc.getPages().indexOf(pg);text('DANFE gerado a partir do XML fornecido. Situação atual não consultada na SEFAZ.',M,H-23,5.6);text('Folha '+(i+1)+' / '+doc.getPageCount(),W-12-64,H-23,6,bold);if(model.homolog){page.drawText('SEM VALOR FISCAL - HOMOLOGAÇÃO',{x:65,y:380,size:23,font:bold,color:rgb(.65,.1,.1),opacity:.26,rotate:degrees(24)})}}
  return doc.save();
 }
 root.VieiraDanfe={parseXML,createPDF,checkKey,decimal};

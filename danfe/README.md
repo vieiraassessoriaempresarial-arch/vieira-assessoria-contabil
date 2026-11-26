@@ -4,9 +4,9 @@ Ferramenta estática em `/danfe/`, com processamento exclusivamente local no nav
 
 ## Escopo
 
-- XML `nfeProc` da NF-e modelo 55, versão 4.00, `tpImp=1`, `tpEmis=1`.
+- XML `nfeProc` da NF-e modelo 55, versão 4.00, `tpImp=1` ou `2`, `tpEmis=1`.
 - Protocolo `cStat=100` ou `150`, chave numérica com DV válido, emitente, número, série e ambiente coerentes.
-- PDF A4 retrato, código CODE128C vetorial, dados de emitente/destinatário, impostos, transportador, produtos, duplicatas e informações adicionais.
+- PDF A4 retrato ou paisagem, respeitando `tpImp` do XML, código CODE128C vetorial, dados de emitente/destinatário, impostos, transportador, produtos, duplicatas e informações adicionais.
 - Continuação automática em páginas adicionais; sem corte silencioso de descrições e informações complementares.
 - Aviso e marca-d'água para ambiente de homologação.
 - Sem emissão, assinatura, consulta de situação atual, verificação criptográfica da assinatura ou captura de XML pela chave.
