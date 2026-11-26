@@ -27,7 +27,12 @@ function parseXML(text,Parser=root.DOMParser){
  if(!checkKey(key))throw Error('Chave de acesso numérica inválida no XML. Confira o arquivo original.');
  if(val(prot,'chNFe')!==key)throw Error('O protocolo não corresponde à chave da NF-e.');
  if(key.slice(20,22)!=='55'||key.slice(22,25)!==val(info,'ide/serie').padStart(3,'0')||key.slice(25,34)!==val(info,'ide/nNF').padStart(9,'0'))throw Error('Número, série ou modelo da nota não corresponde à chave de acesso.');
- const issuerId=val(info,'emit/CNPJ')||val(info,'emit/CPF');if(!issuerId||key.slice(6,20)!==issuerId.padStart(14,'0'))throw Error('O emitente não corresponde à chave de acesso.');
+ const issuerId=val(info,'emit/CNPJ')||val(info,'emit/CPF');
+ const series=Number(val(info,'ide/serie'));
+ // NFA-e issued by the tax authority (series 890-899) uses its CNPJ in the key.
+ const authorityKey=val(info,'ide/procEmi')==='1'&&series>=890&&series<=899;
+ const keyIssuer=authorityKey?val(info,'avulsa/CNPJ'):issuerId;
+ if(!issuerId||!keyIssuer||key.slice(6,20)!==keyIssuer.padStart(14,'0'))throw Error(authorityKey?'O órgão emissor da nota avulsa não corresponde à chave de acesso.':'O emitente não corresponde à chave de acesso.');
  if(!/^\d+(\.\d+)?$/.test(val(info,'total/ICMSTot/vNF')))throw Error('Valor total da nota inválido.');
  if(val(prot,'tpAmb')!==val(info,'ide/tpAmb'))throw Error('O ambiente do protocolo difere do ambiente da NF-e.');
  if(!val(prot,'nProt')||!val(prot,'dhRecbto'))throw Error('Protocolo de autorização incompleto.');
@@ -119,6 +124,7 @@ async function createPDF(model,dependencies={}){
  }
  const iss=path(n,'total/ISSQNtot');if(iss){section('CÁLCULO DO ISSQN');row([['INSCRIÇÃO MUNICIPAL',val(emit,'IM'),.25],['VALOR TOTAL DOS SERVIÇOS',decimal(val(iss,'vServ')),.25],['BASE DE CÁLCULO DO ISSQN',decimal(val(iss,'vBC')),.25],['VALOR DO ISSQN',decimal(val(iss,'vISS')),.25]])}
  const extra=[];for(const det of model.items){const pr=child(det,'prod'),imp=child(det,'imposto');const discounts=val(pr,'vDesc');if(discounts)extra.push('Item '+det.getAttribute('nItem')+' - Desconto: R$ '+decimal(discounts));for(const group of ['IBSCBS','IS']){const g=child(imp,group);if(g){const leaves=Array.from(g.getElementsByTagName('*')).filter(x=>!Array.from(x.childNodes).some(c=>c.nodeType===1));extra.push('Item '+det.getAttribute('nItem')+' - '+group+': '+leaves.map(x=>x.localName+'='+x.textContent.trim()).join('; '))}}}
+ const avulsa=child(n,'avulsa');if(avulsa)extra.push('NF-e avulsa — Órgão emissor: '+val(avulsa,'xOrgao')+' | CNPJ: '+idFormat(val(avulsa,'CNPJ'))+' | UF: '+val(avulsa,'UF')+' | Repartição: '+val(avulsa,'repEmi'));
  const refs=kids(child(n,'ide'),'NFref').map(x=>x.textContent.trim()).filter(Boolean);if(refs.length)extra.push('Documentos referenciados: '+refs.join('; '));
  const totalsAdditional=[];for(const tag of ['vII','vPIS','vCOFINS','vFCP','vFCPUFDest','vICMSUFDest','vICMSUFRemet','vICMSDeson','vFCPST','vFCPSTRet','vIPIDevol','vTotTrib']){const value=val(total,tag);if(value&&Number(value)!==0)totalsAdditional.push(tag+': R$ '+decimal(value))}if(totalsAdditional.length)extra.push('Outros totais do XML: '+totalsAdditional.join(' | '));
  const ibs=path(n,'total/IBSCBSTot');if(ibs){const leaves=Array.from(ibs.getElementsByTagName('*')).filter(x=>!Array.from(x.childNodes).some(c=>c.nodeType===1));extra.push('Totais IBS/CBS: '+leaves.map(x=>x.localName+'='+x.textContent.trim()).join('; '))}
